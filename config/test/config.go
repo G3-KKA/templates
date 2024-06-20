@@ -40,11 +40,9 @@ var C Config
 
 // Initialaise config process
 func InitConfig() {
-
 	setEnv()
 	setFlags()
-	setConfig()
-	pflag.Parse()
+	handleConfigFile()
 	bindFlags()
 	fillGlobalConfig()
 	setElse()
@@ -53,6 +51,7 @@ func InitConfig() {
 
 // Two main functions you should change in config code
 // for ENV use register*(), any other variant do not
+// See ./example/example.go for additional hints
 
 // Set ENV
 // Immediately validate thorough utilitary register*()
@@ -64,12 +63,14 @@ func setEnv() {
 
 // Set flags and explicitly define defaults
 // Defaults, as stated in constraints, should be *negative
-func setFlags() {}
+func setFlags() {
+	pflag.String("testflag", "negative value", "May not be defined, this wouldn't violate constraints")
+}
 
 // Callback on config change , aliases etc.
 func setElse() {}
 
-// Do not use this, this violates constraints
+// Do not use, this violates constraints
 // If there any way to not override - do not override (C) Me
 func override() {}
 

@@ -10,4 +10,5 @@ func main() {
 	InitConfig()
 	fmt.Println(viper.GetString("CONFIG_FILE"))
 	fmt.Println(C.Me)
+	fmt.Println(viper.GetString("testflag"))
 }
