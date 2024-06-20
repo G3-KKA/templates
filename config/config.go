@@ -1,7 +1,6 @@
 package config
 
 import (
-	"github.com/spf13/pflag"
 	_ "github.com/spf13/viper"
 )
 
@@ -41,21 +40,19 @@ var C Config
 func InitConfig() {
 	setEnv()
 	setFlags()
-	setConfig()
-	pflag.Parse()
+	handleConfigFile()
 	bindFlags()
 	fillGlobalConfig()
 	setElse()
 	override()
 }
 
-// Two main functions you should change in config code
-// for ENV use register*(), any other variant do not
+// Two main functions you should change in config code are:
+// setEnv() and setFlags()
+// See ./example/example.go for additional hints
 
 // Set ENV
 // Immediately validate thorough utilitary register*()
-//
-//	or any other variant
 func setEnv() {
 	registerENV("CONFIG_FILE")
 }
@@ -67,7 +64,7 @@ func setFlags() {}
 // Callback on config change , aliases etc.
 func setElse() {}
 
-// Do not use this, this violates constraints
+// Do not use, this violates constraints
 // If there any way to not override - do not override (C) Me
 func override() {}
 
