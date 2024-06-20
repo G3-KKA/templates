@@ -5,11 +5,13 @@ import (
 	"strings"
 )
 
+// DEPRECATED, found out about path/filepath lib
 type Unixpath struct {
 	Path string
 }
 
 func (up Unixpath) File() string {
+
 	if up.Path == "" {
 		log.Println("Incorrect usage of Unixpath.File, input is empty")
 		return string(up.Path)
