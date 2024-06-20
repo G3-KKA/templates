@@ -32,8 +32,14 @@ import (
 // 		Code variant defaulting is preferred
 
 type Config struct {
-	EncoderLevel string `mapstructure:"encoder_level"`
-	LogFile      string `mapstructure:"log_file"`
+	Logger struct {
+		Cores []struct {
+			Name         string `mapstructure:"Name"`         // name of the core, for idientification reasons
+			EncoderLevel string `mapstructure:"EncoderLevel"` // production or development
+			Path         string `mapstructure:"Path"`         // everything that getLogFile can handle
+			Level        int    `mapstructure:"Level"`        // level of the core , might be negative
+		} `mapstructure:"Cores"`
+	} `mapstructure:"Logger"`
 }
 
 var C Config

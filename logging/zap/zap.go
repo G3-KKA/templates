@@ -1,15 +1,18 @@
 package zapp
 
 import (
+	"fmt"
 	"log"
-	"os"
+	"yet-again-templates/logging/zap/config"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
+// Should be initialised via InitGlobalLogger()
 var globalLogger *zap.SugaredLogger
 
+// Little wrapper for future ease of identification
 type LevelWithName struct {
 	zap.AtomicLevel
 	Name string
@@ -18,32 +21,38 @@ type LevelWithName struct {
 func withName(name string, level zap.AtomicLevel) LevelWithName {
 	return LevelWithName{level, name}
 }
+
+// []LevelWithName may be used to change specific output destination log levels
+// Thread safe
 func InitLogger() (*zap.SugaredLogger, []LevelWithName) {
 	log.Println("Logger initialization started")
 
-	// Creating encoders
-	encoder := setEncoder()
+	// May dynamicly change log levels in runtime, will be returned from InitLogger()
+	levels := make([]LevelWithName, 0, len(config.C.Logger.Cores))
 
-	// Creating log file
-	logfile := getLogFile()
-
-	// Creating levels to be able to change level in runtime
-	levels := []LevelWithName{
-		withName("stdout", zap.NewAtomicLevelAt(zapcore.InfoLevel)),   // 0
-		withName("logfile", zap.NewAtomicLevelAt(zapcore.DebugLevel)), // 1
+	// Creating cores fully dynamic from config
+	// stderr/stdout supported, network not supported
+	// TODO: Add network support
+	cores := make([]zapcore.Core, 0, len(config.C.Logger.Cores))
+	for _, core := range config.C.Logger.Cores {
+		levels = append(levels, withName(core.Name, zap.NewAtomicLevelAt(zapcore.Level(core.Level))))
+		cores = append(cores,
+			zapcore.NewCore(
+				mustSetEncoder(core.EncoderLevel), // production or development
+				getLogDest(core.Path),             // file or stderr/stdout
+				levels[len(levels)-1],             // last level
+			))
 	}
 
 	// Creating zap.Cores
 	// And merging them
-	logfilecore := zapcore.NewCore(encoder, logfile, levels[0])
-	stderr := zapcore.NewCore(encoder, os.Stderr, levels[1])
-	core := zapcore.NewTee(logfilecore, stderr)
+	core := zapcore.NewTee(cores...)
 
 	// Creating Logger from cores
 	// And sugaring
-
 	logger := zap.New(core)
 	sugarlogger := logger.Sugar()
+	fmt.Println(sugarlogger.Level())
 
 	// First log message
 	// That tells us that logger construction succeeded
@@ -61,13 +70,11 @@ func InitGlobalLogger() {
 	globalLogger, _ = InitLogger()
 }
 
-// Logs to stderr
 func Debug(args ...any) {
 	globalLogger.Debug(args...)
 	globalLogger.Sync()
 }
 
-// Logs to stderr and logfile
 func Info(args ...any) {
 	globalLogger.Info(args...)
 	globalLogger.Sync()
