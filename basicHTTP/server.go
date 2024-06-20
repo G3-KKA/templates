@@ -7,62 +7,64 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus" // можно попробовать использовать логрус для логирования
 )
 
-// Константа для хранения адреса в контексте
+// константа для хранения адреса
 const (
 	addressKey = "Address"
 )
 
-// Структура Starter для хранения адреса
+// структура для хранения адреса
 type Starter struct {
 	Address string
 }
 
-// Функция создания нового Starter из контекста
+// функция создания нового "стартера" из контекста
 func NewStarter(ctx context.Context) (*Starter, error) {
-	// Получение адреса из контекста
+	// получение адреса
 	addr, ok := ctx.Value(addressKey).(string)
 	if !ok {
-		// Возврат ошибки, если адрес не найден в контексте
+		// отлавливаем ошибку
 		return nil, fmt.Errorf("address not found in context")
 	}
 	return &Starter{Address: addr}, nil
 }
 
-// Структура ServeInterState для обработки запросов
-type ServeInterState struct{}
+// структура для обработки запросов
+type ServeInterState struct {
+	//...
+}
 
-// Функция создания нового ServeInterState
+// функция создания нового запроса
 func NewServeInterState() *ServeInterState {
 	return &ServeInterState{}
 }
 
-// Обработка корневого запроса
+// обработка корневого запроса
 func (sis *ServeInterState) serveRoot(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello Template\n"))
 }
 
-// Обработка общего запроса
+// обработка генерал запроса
 func (sis *ServeInterState) general(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// Middleware для логирования запросов
+// мидлы для логирования запросов
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Логирование запроса
+		// логирование
 		logrus.Infof("Request: %s %s", r.Method, r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
 }
 
-// Middleware для перехвата паники
+// мидлы для отвода паники
 func panicMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
-			// Перехват паники и логирование ошибки
+			// отводим панику
 			if err := recover(); err != nil {
 				logrus.Errorf("Recovered from panic: %v", err)
 				http.Error(w, "Internal server error", 500)
@@ -72,7 +74,7 @@ func panicMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// Структура ServerConfig для конфигурации сервера
+// структура для конфига сервера
 type ServerConfig struct {
 	Address           string
 	ReadTimeout       time.Duration
@@ -81,9 +83,9 @@ type ServerConfig struct {
 	IdleTimeout       time.Duration
 }
 
-// Функция запуска сервера
+// запуск сервера
 func (starter *Starter) StartServer(ctx context.Context, config ServerConfig) {
-	// Создание ServeMux для обработки запросов
+	// обработка запросов
 	stdlibMux := http.NewServeMux()
 	sis := NewServeInterState()
 	stdlibMux.HandleFunc("/", sis.serveRoot)
@@ -93,7 +95,7 @@ func (starter *Starter) StartServer(ctx context.Context, config ServerConfig) {
 	generalMux := http.NewServeMux()
 	generalMux.Handle("/", mdw)
 
-	// Создание сервера
+	// создание сервера
 	server := http.Server{
 		Addr:              config.Address,
 		Handler:           generalMux,
@@ -104,14 +106,14 @@ func (starter *Starter) StartServer(ctx context.Context, config ServerConfig) {
 		BaseContext:       func(l net.Listener) context.Context { return ctx },
 	}
 
-	// Запуск сервера в отдельной горутине
+	// запуск(в горутине ,если можно по другому то окэй)
 	go func() {
 		<-ctx.Done()
 		server.Shutdown(ctx)
 		logrus.Info("Shutdown by context.Done call")
 	}()
 
-	// Логирование запуска сервера
+	// логи для запуска
 	logrus.Infof("Start Serving at: %s", config.Address)
 	server.ListenAndServe()
 	logrus.Info("Done Serving")
