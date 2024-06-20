@@ -30,6 +30,7 @@ func registerENV(input ...string) {
 
 // Wraps viper.BindPFlags(pflag.CommandLine) into panic + os.Exit(1)
 func bindFlags() {
+	pflag.Parse()
 	err := viper.BindPFlags(pflag.CommandLine)
 	if err != nil {
 		log.Fatalf("Cannot bind flags: %v\n", err)
@@ -48,12 +49,19 @@ func fillGlobalConfig() {
 	}
 }
 
-func nameExtFromAbsPath(path string) (name string, ext string) {
+// Parse config file path for name and ext
+func nameExtFromPath(path string) (name string, ext string) {
 	nameAndExt := strings.Split(filepath.Base(path), ".")
 	return nameAndExt[0], nameAndExt[1]
 }
-func setConfig() {
-	name, ext := nameExtFromAbsPath(viper.GetString("CONFIG_FILE"))
+
+// Set config file name and extention
+// Change only if something breaks
+// For ./relative/path/to/config  and //full/path/to/config
+// For config    .yaml .json .toml
+// Works just fine
+func handleConfigFile() {
+	name, ext := nameExtFromPath(viper.GetString("CONFIG_FILE"))
 	dir := filepath.Dir(viper.GetString("CONFIG_FILE"))
 	viper.AddConfigPath(dir)
 	viper.SetConfigName(name)
