@@ -1,7 +1,7 @@
+WORKDIR ?= $(shell pwd)/..
 include ./.env
-
 export $(shell sed 's/=.*//' .env)
 
 default:
-	go build -o ../bin/main ../cmd/main.go
-	../bin/main
+	go build -o ${WORKDIR}/bin/main ${WORKDIR}/cmd/main.go
+	${WORKDIR}/bin/main
