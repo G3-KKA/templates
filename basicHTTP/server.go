@@ -3,69 +3,70 @@ package basichttp
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/sirupsen/logrus" // можно попробовать использовать логрус для логирования
 )
 
+// константа для хранения адреса
+const (
+	addressKey = "Address"
+)
+
+// структура для хранения адреса
 type Starter struct {
 	Address string
 }
 
-func NewStarter(ctx context.Context) Starter {
-	starter := Starter{}
-	ctxv := ctx.Value("Address")
-	addr, ok := ctxv.(string)
-	if ok {
-		starter.Address = addr
+// функция создания нового "стартера" из контекста
+func NewStarter(ctx context.Context) (*Starter, error) {
+	// получение адреса
+	addr, ok := ctx.Value(addressKey).(string)
+	if !ok {
+		// отлавливаем ошибку
+		return nil, fmt.Errorf("address not found in context")
 	}
-	return starter
+	return &Starter{Address: addr}, nil
 }
 
+// структура для обработки запросов
 type ServeInterState struct {
+	//...
 }
 
-func NewServeInterState(ctx context.Context) *ServeInterState {
-	fromCtx := ctx.Value("__INTERSTATE_KEY__")
-	if fromCtx != nil {
-		/* logic */
-	}
+// функция создания нового запроса
+func NewServeInterState() *ServeInterState {
 	return &ServeInterState{}
 }
 
-/*
-http://127.0.0.1/
-*/
+// обработка корневого запроса
 func (sis *ServeInterState) serveRoot(w http.ResponseWriter, r *http.Request) {
-	w.Write(([]byte)("Hello Template\n"))
+	w.Write([]byte("Hello Template\n"))
 }
+
+// обработка генерал запроса
 func (sis *ServeInterState) general(w http.ResponseWriter, r *http.Request) {
 
 }
 
-/*
-http://127.0.0.1/__ELSE__
-*/
-func (sis *ServeInterState) serve__ELSE__(w http.ResponseWriter, r *http.Request) {
-
-}
+// мидлы для логирования запросов
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		/* logging */
-		/*
-			ctx := r.Context()
-			next.ServeHTTP(w,r.WithContext(ctx))
-		*/
+		// логирование
+		logrus.Infof("Request: %s %s", r.Method, r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
-
 }
+
+// мидлы для отвода паники
 func panicMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
+			// отводим панику
 			if err := recover(); err != nil {
-				fmt.Println("recovered", err)
+				logrus.Errorf("Recovered from panic: %v", err)
 				http.Error(w, "Internal server error", 500)
 			}
 		}()
@@ -73,18 +74,20 @@ func panicMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// no Request , Reply, error -- to start as goroutine
-func (starter *Starter) StartServer(ctx context.Context) {
-	addr := starter.Address
-	if addr == "" {
-		addr, _ = ctx.Value("__ADDRESS__").(string)
-		if addr == "" {
-			log.Fatal("Cannot get addres from context:\t __ADDRESS__ ")
-		}
-		log.Fatal("Cannot get addres:\t __ADDRESS__ ")
-	}
+// структура для конфига сервера
+type ServerConfig struct {
+	Address           string
+	ReadTimeout       time.Duration
+	ReadHeaderTimeout time.Duration
+	WriteTimeout      time.Duration
+	IdleTimeout       time.Duration
+}
+
+// запуск сервера
+func (starter *Starter) StartServer(ctx context.Context, config ServerConfig) {
+	// обработка запросов
 	stdlibMux := http.NewServeMux()
-	sis := NewServeInterState(ctx)
+	sis := NewServeInterState()
 	stdlibMux.HandleFunc("/", sis.serveRoot)
 	stdlibMux.HandleFunc("/__ELSE__", sis.serve__ELSE__)
 	mdw := loggingMiddleware(stdlibMux)
@@ -92,30 +95,26 @@ func (starter *Starter) StartServer(ctx context.Context) {
 	generalMux := http.NewServeMux()
 	generalMux.Handle("/", mdw)
 
+	// создание сервера
 	server := http.Server{
-
-		Addr:              addr,
+		Addr:              config.Address,
 		Handler:           generalMux,
-		ReadTimeout:       10 * time.Second,
-		ReadHeaderTimeout: 10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       10 * time.Second,
+		ReadTimeout:       config.ReadTimeout,
+		ReadHeaderTimeout: config.ReadHeaderTimeout,
+		WriteTimeout:      config.WriteTimeout,
+		IdleTimeout:       config.IdleTimeout,
 		BaseContext:       func(l net.Listener) context.Context { return ctx },
-
-		/*
-		   ConnContext: func(ctx context.Context, c net.Conn) context.Context {
-		   			// optional
-		   			return context.WithValue(ctx, __KEY__, __VALUE__)
-		   		},
-		*/
 	}
-	log.Println("Start Serving at:", addr)
+
+	// запуск(в горутине ,если можно по другому то окэй)
 	go func() {
 		<-ctx.Done()
 		server.Shutdown(ctx)
-		log.Println("Shutdown by context.Done call")
+		logrus.Info("Shutdown by context.Done call")
 	}()
-	server.ListenAndServe()
-	log.Println("Done Serving")
 
+	// логи для запуска
+	logrus.Infof("Start Serving at: %s", config.Address)
+	server.ListenAndServe()
+	logrus.Info("Done Serving")
 }
