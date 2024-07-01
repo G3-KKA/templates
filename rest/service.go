@@ -5,8 +5,6 @@ import (
 )
 
 type Service struct {
-	// should be embeeded in Mux
-	//HH  *handlers.HandlerHolder
 	Mux http.Handler
 }
 

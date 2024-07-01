@@ -9,6 +9,5 @@ func NewHandlerHolder(repo domain.Repository) *HandlerHolder {
 }
 
 type HandlerHolder struct {
-	// Lowercase !!!
 	repo domain.Repository
 }
