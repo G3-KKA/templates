@@ -1,14 +1,14 @@
 package config
 
-//
+// Ideas for dynamic config
 
 type token string
 type configVersion int
 type Session struct {
-	newConfig                    Config
+	newConfig                    config
 	tokenThatShouldGetOldConfigs map[token]configVersion
-	oldConfigs                   map[configVersion]Config
+	oldConfigs                   map[configVersion]config
 }
 type ConfigHolder interface {
-	GetConfig(token) (Config, error)
+	GetConfig(token) (config, error)
 }
