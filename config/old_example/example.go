@@ -9,6 +9,38 @@ import (
 	"github.com/spf13/viper"
 )
 
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+// OLD EXAMPLE , BUT FUCTIONAL STILL THE SAME
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
 // Hints
 //
 // 1. use `mapstructure` as if it is a yaml tag
