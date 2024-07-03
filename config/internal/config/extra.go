@@ -1,6 +1,10 @@
 package config
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/spf13/viper"
+)
 
 // Global config instance
 var c Config
@@ -48,14 +52,32 @@ func setEnv() error {
 
 // Set flags and explicitly define defaults
 // Defaults, as stated in constraints, should be *negative
-func setFlags() error { return nil }
+func setFlags() (err error) {
+	for _, flag := range flags {
+		flag()
+	}
+	return nil
+}
 
 // Callback on config change , aliases etc.
-func setElse() error { return nil }
+func setElse() (err error) {
+	for _, els := range elses {
+		err = els()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // Do not use, this violates constraints
 // If there any way to not override - do not override (C) Me
-func override() error { return nil }
+func override() error {
+	for _, over := range toOverride {
+		viper.Set(over.name, over.value)
+	}
+	return nil
+}
 
 // *defaults
 // "","false","no","stop" for string

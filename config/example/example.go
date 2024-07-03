@@ -1,7 +1,12 @@
-package config
+package example
 
 import (
-	_ "github.com/spf13/viper"
+	"log"
+	"time"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 // Hints
@@ -36,10 +41,12 @@ import (
 // ${WORKSPACE}/file/path => ~/user/goapp/file/path
 type path string
 
-// Represents config file, must be changed manually
-// Only private fields
 type Config struct {
-	Dummy struct{} `mapstructure:"dummy"`
+	BasicField  string `mapstructure:"basic_field"`
+	Example     path   `mapstructure:"example"`
+	InnerStruct struct {
+		Field time.Duration `mapstructure:"field"`
+	} `mapstructure:"inner_struct"`
 }
 
 var environment = [...]string{
@@ -47,13 +54,36 @@ var environment = [...]string{
 	// Removing this will break every env-based path in service
 	"WORKSPACE",
 	"CONFIG_FILE",
+	"GOVERSION",
+	"OS",
 }
 
 // Use pfalg.*
-var flags = [...]flagSetter{}
+var flags = [...]flagSetter{
+	func() { pflag.Bool("enable_debug", false, "Define if debug info is enabled") },
+}
 
 // Other viper options
-var elses = [...]elseSetter{}
+var elses = [...]elseSetter{
+	func() error {
+
+		// Callback
+		viper.OnConfigChange(func(e fsnotify.Event) {
+			log.Println("Config file changed:", e.Name)
+		})
+		viper.WatchConfig()
+
+		return nil
+	},
+	func() error {
+		// Aliases example
+		viper.RegisterAlias("enable_debug", "debug")
+		return nil
+	},
+}
 
 // Uses	viper.Set
-var toOverride = [...]overrideContainer{}
+var toOverride = [...]overrideContainer{
+	{"enable_debug", true},
+	{"dummy", "dummy"},
+}
