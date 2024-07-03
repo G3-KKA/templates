@@ -1,2 +1,2 @@
-mkdir bin
-make
+mkdir bin;
+make;
