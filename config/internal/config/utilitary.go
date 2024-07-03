@@ -15,6 +15,14 @@ import (
 // Phase of config initialisation
 type initPhase func() error
 
+type overrideContainer struct {
+	name  string
+	value any
+}
+
+type flagSetter func()
+type elseSetter func() error
+
 // Executes every phase, panics on first error
 // Program shouldn't start if any phase of configuration fails
 func execute(pipeline []initPhase) {
