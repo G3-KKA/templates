@@ -1,4 +1,4 @@
-package configexample
+package config
 
 import (
 	"fmt"
@@ -11,6 +11,20 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
+
+// Phase of config initialisation
+type initPhase func() error
+
+// Executes every phase, panics on first error
+// Program shouldn't start if any phase of configuration fails
+func execute(pipeline []initPhase) {
+	for _, phase := range pipeline {
+		err := phase()
+		if err != nil {
+			log.Fatalf("Cannot init condfig %e\n", err)
+		}
+	}
+}
 
 // The difference between register() and bind() is
 // that register() extends bind() logic
@@ -123,6 +137,7 @@ func envInConfigValuesHook() viper.DecoderConfigOption {
 
 		// After this operation envName == WORKSPACE
 		envName := dataString[openBracket+1 : closeBracket+1]
+
 		// ~/user/goapps/thisapp/internal + /file/path
 		// ENV we trying to get should not contain '/'
 		// and actual data we want to get should start with'/'

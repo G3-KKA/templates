@@ -10,4 +10,5 @@ func main() {
 	config.InitConfig()
 	c := config.Get()
 	fmt.Printf("|%s|\n", c.Example)
+
 }

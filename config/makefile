@@ -1,5 +1,5 @@
 WORKSPACE ?= $(shell pwd)
-include ./.env
+include ${WORKSPACE}/.env
 export $(shell sed 's/=.*//' .env)
 export WORKSPACE
 example:
