@@ -37,7 +37,7 @@ import (
 type path string
 
 // Represents config file, must be changed manually
-// Only private fields
+// Only public fields
 type Config struct {
 	Dummy struct{} `mapstructure:"dummy"`
 }
@@ -56,4 +56,4 @@ var flags = [...]flagSetter{}
 var elses = [...]elseSetter{}
 
 // Uses	viper.Set
-var toOverride = [...]overrideContainer{}
+var override = [...]overrideContainer{}

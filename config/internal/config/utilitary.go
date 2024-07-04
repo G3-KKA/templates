@@ -68,7 +68,7 @@ func fillGlobalConfig() error {
 	if err != nil {
 		return fmt.Errorf("cannot read config file from CONFIG_FILE: %v", err)
 	}
-	err = viper.Unmarshal(&c, envInConfigValuesHook())
+	err = viper.Unmarshal(&c, viper.DecodeHook(envReplaceHook()))
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal config.file into config.C: %v", err)
 	}
@@ -116,44 +116,51 @@ func handleConfigFile() error {
 
 // Parse ${ENV}/dir/file kind of path,
 // Only works if variable to decode is config.path type
-func envInConfigValuesHook() viper.DecoderConfigOption {
-	hook := mapstructure.DecodeHookFuncType(func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
-		// Ignoring other data
-		if f.Kind() != reflect.String {
-			return data, nil
-		}
-		if t != reflect.TypeOf(path("")) {
-			return data, nil
-		}
+func envReplaceHook() mapstructure.DecodeHookFuncType {
+	hook := mapstructure.DecodeHookFuncType(
+		func(
+			f reflect.Type,
+			t reflect.Type,
+			data any,
+		) (any, error) {
+			// Ignoring other data
+			if f.Kind() != reflect.String {
+				return data, nil
+			}
+			if t != reflect.TypeOf(path("")) {
+				return data, nil
+			}
 
-		// #config.yaml
-		// key : ${WORKSPACE}/file/path
-		dataString := data.(string)
-		dollarIndex := strings.Index(dataString, "$")
-		if dollarIndex == -1 {
-			errmsg := `'$' not found in variable 
+			// #config.yaml
+			// key : ${WORKSPACE}/file/path
+			// viper gives us not config.path type but string
+			// be careful with tests!
+			dataString := data.(string)
+			dollarIndex := strings.Index(dataString, "$")
+			if dollarIndex == -1 {
+				return data, fmt.Errorf(errmsg1)
+			}
+
+			// Getting indexes of '{' and '}'
+			openBracket := strings.Index(dataString[dollarIndex:], "{")
+			closeBracket := strings.Index(dataString[openBracket:], "}")
+
+			// After this operation envName == WORKSPACE
+			envName := dataString[openBracket+1 : closeBracket+1]
+
+			// ~/user/goapps/thisapp/internal + /file/path
+			// ENV we trying to get should not contain '/'
+			// and actual data we want to get should start with'/'
+			// This is the most common case for any path operation
+			// $(pwd)/file/path or WORKSPACE = ..
+			path := viper.GetString(envName) + dataString[closeBracket+2:]
+			return path, nil
+		})
+	return hook
+
+}
+
+var errmsg1 = `'$' not found in variable 
 			so that specificaly declared in config struct as config.path type
 			which should only be used if variable in config.file 
 			uses ${WORKSPACE}/file/path form of path declaration`
-			log.Println(errmsg)
-			return data, fmt.Errorf(errmsg)
-		}
-
-		// Getting indexes of '{' and '}'
-		openBracket := strings.Index(dataString[dollarIndex:], "{")
-		closeBracket := strings.Index(dataString[openBracket:], "}")
-
-		// After this operation envName == WORKSPACE
-		envName := dataString[openBracket+1 : closeBracket+1]
-
-		// ~/user/goapps/thisapp/internal + /file/path
-		// ENV we trying to get should not contain '/'
-		// and actual data we want to get should start with'/'
-		// This is the most common case for any path operation
-		// $(pwd)/file/path or WORKSPACE = ..
-		path := viper.GetString(envName) + dataString[closeBracket+2:]
-		return path, nil
-	})
-	return viper.DecodeHook(hook)
-
-}

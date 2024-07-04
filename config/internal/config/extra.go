@@ -27,7 +27,7 @@ func InitConfig() {
 			bindFlags,
 			fillGlobalConfig,
 			setElse,
-			override,
+			doOverride,
 		}
 		// panics only here
 		execute(pipeline)
@@ -72,8 +72,8 @@ func setElse() (err error) {
 
 // Do not use, this violates constraints
 // If there any way to not override - do not override (C) Me
-func override() error {
-	for _, over := range toOverride {
+func doOverride() error {
+	for _, over := range override {
 		viper.Set(over.name, over.value)
 	}
 	return nil
