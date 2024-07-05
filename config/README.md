@@ -6,3 +6,5 @@ Treat this file as configuration API
 Makefile needs /bin directory, so create it before use  
 mkdir bin;  
 make;  
+
+TODO: Add support for dynamic configuration via Consul
