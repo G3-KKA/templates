@@ -76,13 +76,10 @@ func fillGlobalConfig() error {
 		mapstructure.StringToTimeDurationHookFunc(),
 	}
 	composeHook := mapstructure.ComposeDecodeHookFunc(hooks...)
-
-	// Be Careful, viper overrides defauts hooks, if we provide our own(s)
 	err = viper.Unmarshal(&c, viper.DecodeHook(composeHook))
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal config.file into config.C: %v", err)
 	}
-
 	return nil
 }
 
