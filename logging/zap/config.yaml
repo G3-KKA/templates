@@ -1,10 +1,13 @@
 Logger:
+    SyncTimeout: 1s 
     Cores:
     - Name : stderr
       EncoderLevel: production
       Path: /dev/stderr
       Level : 0
+      MustCreateCore: false
     - Name : logfile
       EncoderLevel: production
-      Path: "./zap.log"
+      Path: "${WORKSPACE}/tmp/log.log"
       Level : -1
+      MustCreateCore: true
