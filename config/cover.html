@@ -55,9 +55,11 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">yet-again-templates/config/internal/config/extra.go (66.7%)</option>
+				<option value="file0">aculo/connector-restapi/internal/config/internal_logic.go (88.3%)</option>
 				
-				<option value="file1">yet-again-templates/config/internal/config/utilitary.go (88.9%)</option>
+				<option value="file1">aculo/connector-restapi/internal/config/phases.go (66.7%)</option>
+				
+				<option value="file2">aculo/connector-restapi/internal/config/utils.go (0.0%)</option>
 				
 				</select>
 			</div>
@@ -72,6 +74,181 @@
 		<div id="content">
 		
 		<pre class="file" id="file0" style="display: none">package config
+
+import (
+        "fmt"
+        "path/filepath"
+        "reflect"
+        "strings"
+
+        "github.com/mitchellh/mapstructure"
+        "github.com/spf13/pflag"
+        "github.com/spf13/viper"
+)
+
+// Phase of config initialisation
+type initPhase func() error
+
+// Container for config override
+type overrideContainer struct {
+        name  string
+        value any
+}
+
+// Use pflag to bind
+type flagSetter func()
+
+// Other options
+type elseSetter func() error
+
+func execute(pipeline []initPhase) error <span class="cov8" title="1">{
+        for _, phase := range pipeline </span><span class="cov8" title="1">{
+                err := phase()
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("cannot init condfig %e", err)
+                }</span>
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Adds validation to env binding
+func registerENV(input ...string) error <span class="cov8" title="1">{
+        viper.BindEnv(input...)
+        for _, env := range input </span><span class="cov8" title="1">{
+                // Type-free validation
+                // Not defined integer or bool should be "" as well
+                envalue := viper.GetString(env)
+                if envalue == "" </span><span class="cov8" title="1">{
+                        return fmt.Errorf("%s is not defined", env)
+                }</span>
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Wraps viper.BindPFlags()
+func bindFlags() error <span class="cov8" title="1">{
+        pflag.Parse()
+        err := viper.BindPFlags(pflag.CommandLine)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("cannot bind flags: %v", err)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+func fillGlobalConfig() error <span class="cov8" title="1">{
+
+        err := viper.ReadInConfig()
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("cannot read config file: %v", err)
+        }</span>
+
+        // Will be called one after another
+        // Do not try to put them separately
+        // ComposeDecode in crucial
+        <span class="cov8" title="1">hooks := []mapstructure.DecodeHookFunc{
+                envReplaceHook(),
+                mapstructure.StringToTimeDurationHookFunc(),
+        }
+        composeHook := mapstructure.ComposeDecodeHookFunc(hooks...)
+        err = viper.Unmarshal(&amp;c, viper.DecodeHook(composeHook))
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("cannot unmarshal config file contents: %v", err)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Parse config file path for  ext
+// TODO filepath.EXT()
+func extFromPath(path string) string <span class="cov8" title="1">{
+        dotIndex := strings.LastIndexByte(path, '.')
+        if dotIndex == -1 </span><span class="cov0" title="0">{
+                return ""
+        }</span>
+        <span class="cov8" title="1">return path[dotIndex+1:]</span>
+}
+
+// Parse config file path for name
+func nameFromPath(path string) string <span class="cov8" title="1">{
+        dotIndex := strings.LastIndexByte(path, '.')
+        if dotIndex == -1 </span><span class="cov0" title="0">{
+                return ""
+        }</span>
+        <span class="cov8" title="1">slashIndex := strings.LastIndexByte(path[:dotIndex], '/')
+        return path[slashIndex+1 : dotIndex]</span>
+}
+
+// Sets config file name and extention
+// Change only if something breaks
+func handleConfigFile() error <span class="cov8" title="1">{
+        configFileEnv := viper.GetString("CONFIG_FILE")
+
+        // Getting parts of path
+        name := nameFromPath(configFileEnv)
+        ext := extFromPath(configFileEnv)
+        dir := filepath.Dir(configFileEnv)
+
+        // Setting Config
+        viper.AddConfigPath(dir)
+        viper.SetConfigName(name)
+        viper.SetConfigType(ext)
+        return nil
+}</span>
+
+// Parse ${ENV}/dir/file kind of path,
+// Only works if variable type is path, see ./config.go
+func envReplaceHook() mapstructure.DecodeHookFuncType <span class="cov8" title="1">{
+        hook := mapstructure.DecodeHookFuncType(
+                func(
+                        f reflect.Type,
+                        t reflect.Type,
+                        data any,
+                ) (any, error) </span><span class="cov8" title="1">{
+                        // Skip other types of data
+                        if f.Kind() != reflect.String </span><span class="cov8" title="1">{
+                                return data, nil
+                        }</span>
+                        <span class="cov8" title="1">if t != reflect.TypeOf(path("")) </span><span class="cov8" title="1">{
+                                return data, nil
+                        }</span>
+
+                        // example
+                        // #config.yaml
+                        // key : ${WORKSPACE}/file/path
+                        // #.env
+                        // WORKSPACE = ~/user/goapps/thisapp/internal
+
+                        // viper gives us not 'path' type but regular string
+                        <span class="cov8" title="1">dataString := data.(string)
+
+                        // Search for '$' in string
+                        dollarIndex := strings.Index(dataString, "$")
+                        if dollarIndex == -1 </span><span class="cov8" title="1">{
+                                return data, nil
+                        }</span>
+                        <span class="cov8" title="1">dataString = dataString[dollarIndex:]
+
+                        // Getting indexes of '{' and '}'
+                        openBracket := strings.Index(dataString[dollarIndex:], "{")
+                        closeBracket := strings.Index(dataString[dollarIndex:], "}")
+                        if closeBracket == -1 || openBracket == -1 </span><span class="cov0" title="0">{
+                                return data, nil
+                        }</span>
+
+                        // After this operation envName == WORKSPACE
+                        <span class="cov8" title="1">envName := dataString[openBracket+1 : closeBracket]
+
+                        // ~/user/goapps/thisapp/internal + /file/path
+                        // ENV we trying to get should not contain '/'
+                        // and actual data we want to get should start with'/'
+                        // This is the most common case for any path operation
+                        path := viper.GetString(envName) + dataString[closeBracket+1:]
+                        return path, nil</span>
+                })
+        <span class="cov8" title="1">return hook</span>
+
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package config
 
 import (
         "sync"
@@ -89,7 +266,7 @@ func Get() Config <span class="cov0" title="0">{
 
 // Initialaise config process
 // Every path in service works around single env WORKSPACE
-func InitConfig() <span class="cov8" title="1">{
+func InitConfig() (err error) <span class="cov8" title="1">{
 
         once := sync.Once{}
         once.Do(func() </span><span class="cov8" title="1">{
@@ -103,16 +280,15 @@ func InitConfig() <span class="cov8" title="1">{
                         doOverride,
                 }
                 // panics only here
-                execute(pipeline)
-        }</span>)
+                err = execute(pipeline)
+                if err != nil </span><span class="cov0" title="0">{
+                        return
+                }</span>
+        })
+        <span class="cov8" title="1">return</span>
 }
 
-// Two main functions you should change in config code are:
-// setEnv() and setFlags()
-// See ./example/example.go for additional hints
-
-// Set ENV
-// Immediately validate thorough utilitary register*()
+// Set and immediately validate env variable
 func setEnv() error <span class="cov8" title="1">{
         for _, env := range environment </span><span class="cov8" title="1">{
                 err := registerENV(env)
@@ -123,8 +299,7 @@ func setEnv() error <span class="cov8" title="1">{
         <span class="cov8" title="1">return nil</span>
 }
 
-// Set flags and explicitly define defaults
-// Defaults, as stated in constraints, should be *negative
+// Set flags
 func setFlags() (err error) <span class="cov8" title="1">{
         for _, flag := range flags </span><span class="cov0" title="0">{
                 flag()
@@ -151,180 +326,13 @@ func doOverride() error <span class="cov8" title="1">{
         }</span>
         <span class="cov8" title="1">return nil</span>
 }
-
-// *defaults
-// "","false","no","stop" for string
-// 0 for int
-// 0.0 for float
-// false for bool
 </pre>
 		
-		<pre class="file" id="file1" style="display: none">package config
+		<pre class="file" id="file2" style="display: none">package config
 
-import (
-        "fmt"
-        "log"
-        "path/filepath"
-        "reflect"
-        "strings"
-
-        "github.com/mitchellh/mapstructure"
-        "github.com/spf13/pflag"
-        "github.com/spf13/viper"
-)
-
-// Phase of config initialisation
-type initPhase func() error
-
-type overrideContainer struct {
-        name  string
-        value any
-}
-
-type flagSetter func()
-type elseSetter func() error
-
-// Executes every phase, panics on first error
-// Program shouldn't start if any phase of configuration fails
-func execute(pipeline []initPhase) <span class="cov8" title="1">{
-        for _, phase := range pipeline </span><span class="cov8" title="1">{
-                err := phase()
-                if err != nil </span><span class="cov0" title="0">{
-                        log.Fatalf("Cannot init condfig %e\n", err)
-                }</span>
-        }
-}
-
-// The difference between register() and bind() is
-// that register() extends bind() logic
-// in this case - validates that env
-
-// Adds validation to env binding
-func registerENV(input ...string) error <span class="cov8" title="1">{
-        viper.BindEnv(input...)
-        for _, env := range input </span><span class="cov8" title="1">{
-                // Type-free validation
-                // Not defined integer or bool would be "" as well
-                envalue := viper.GetString(env)
-                if envalue == "" </span><span class="cov8" title="1">{
-                        return fmt.Errorf("%s is not defined", env)
-                }</span>
-        }
-        <span class="cov8" title="1">return nil</span>
-}
-
-// Wraps viper.BindPFlags(pflag.CommandLine)
-func bindFlags() error <span class="cov8" title="1">{
-        pflag.Parse()
-        err := viper.BindPFlags(pflag.CommandLine)
-        if err != nil </span><span class="cov0" title="0">{
-                return fmt.Errorf("cannot bind flags: %v", err)
-        }</span>
-        <span class="cov8" title="1">return nil</span>
-}
-
-// Wraps viper.BindPFlags(pflag.CommandLine) into panic + os.Exit(1)
-func fillGlobalConfig() error <span class="cov8" title="1">{
-        err := viper.ReadInConfig()
-        if err != nil </span><span class="cov0" title="0">{
-                return fmt.Errorf("cannot read config file from CONFIG_FILE: %v", err)
-        }</span>
-        <span class="cov8" title="1">err = viper.Unmarshal(&amp;c, viper.DecodeHook(envReplaceHook()))
-        if err != nil </span><span class="cov0" title="0">{
-                return fmt.Errorf("cannot unmarshal config.file into config.C: %v", err)
-        }</span>
-        <span class="cov8" title="1">return nil</span>
-}
-
-// Parse config file path for  ext
-func extFromPath(path string) string <span class="cov8" title="1">{
-        dotIndex := strings.LastIndexByte(path, '.')
-        if dotIndex == -1 </span><span class="cov0" title="0">{
-                return ""
-        }</span>
-        <span class="cov8" title="1">return path[dotIndex+1:]</span>
-}
-
-// Parse config file path for name
-func nameFromPath(path string) string <span class="cov8" title="1">{
-        dotIndex := strings.LastIndexByte(path, '.')
-        if dotIndex == -1 </span><span class="cov0" title="0">{
-                return ""
-        }</span>
-        <span class="cov8" title="1">slashIndex := strings.LastIndexByte(path[:dotIndex], '/')
-        return path[slashIndex+1 : dotIndex]</span>
-}
-
-// Set config file name and extention
-// Change only if something breaks
-// For ./relative/path/to/config  and //full/path/to/config
-// For config    .yaml .json .toml
-// Works just fine
-func handleConfigFile() error <span class="cov8" title="1">{
-        configFileEnv := viper.GetString("CONFIG_FILE")
-
-        // Getting parts of path
-        name := nameFromPath(configFileEnv)
-        ext := extFromPath(configFileEnv)
-        dir := filepath.Dir(configFileEnv)
-
-        // Setting Config
-        viper.AddConfigPath(dir)
-        viper.SetConfigName(name)
-        viper.SetConfigType(ext)
-        return nil
+func AssembleAddress(config Config) string <span class="cov0" title="0">{
+        return config.HTTPServer.ListeningAddress + config.HTTPServer.Port
 }</span>
-
-// Parse ${ENV}/dir/file kind of path,
-// Only works if variable to decode is config.path type
-func envReplaceHook() mapstructure.DecodeHookFuncType <span class="cov8" title="1">{
-        hook := mapstructure.DecodeHookFuncType(
-                func(
-                        f reflect.Type,
-                        t reflect.Type,
-                        data any,
-                ) (any, error) </span><span class="cov8" title="1">{
-                        // Ignoring other data
-                        if f.Kind() != reflect.String </span><span class="cov8" title="1">{
-                                return data, nil
-                        }</span>
-                        <span class="cov8" title="1">if t != reflect.TypeOf(path("")) </span><span class="cov8" title="1">{
-                                return data, nil
-                        }</span>
-
-                        // #config.yaml
-                        // key : ${WORKSPACE}/file/path
-                        // viper gives us not config.path type but string
-                        // be careful with tests!
-                        <span class="cov8" title="1">dataString := data.(string)
-                        dollarIndex := strings.Index(dataString, "$")
-                        if dollarIndex == -1 </span><span class="cov8" title="1">{
-                                return data, fmt.Errorf(errmsg1)
-                        }</span>
-
-                        // Getting indexes of '{' and '}'
-                        <span class="cov8" title="1">openBracket := strings.Index(dataString[dollarIndex:], "{")
-                        closeBracket := strings.Index(dataString[openBracket:], "}")
-
-                        // After this operation envName == WORKSPACE
-                        envName := dataString[openBracket+1 : closeBracket+1]
-
-                        // ~/user/goapps/thisapp/internal + /file/path
-                        // ENV we trying to get should not contain '/'
-                        // and actual data we want to get should start with'/'
-                        // This is the most common case for any path operation
-                        // $(pwd)/file/path or WORKSPACE = ..
-                        path := viper.GetString(envName) + dataString[closeBracket+2:]
-                        return path, nil</span>
-                })
-        <span class="cov8" title="1">return hook</span>
-
-}
-
-var errmsg1 = `'$' not found in variable 
-                        so that specificaly declared in config struct as config.path type
-                        which should only be used if variable in config.file 
-                        uses ${WORKSPACE}/file/path form of path declaration`
 </pre>
 		
 		</div>

@@ -16,7 +16,7 @@ func Get() Config {
 
 // Initialaise config process
 // Every path in service works around single env WORKSPACE
-func InitConfig() {
+func InitConfig() (err error) {
 
 	once := sync.Once{}
 	once.Do(func() {
@@ -30,16 +30,15 @@ func InitConfig() {
 			doOverride,
 		}
 		// panics only here
-		execute(pipeline)
+		err = execute(pipeline)
+		if err != nil {
+			return
+		}
 	})
+	return
 }
 
-// Two main functions you should change in config code are:
-// setEnv() and setFlags()
-// See ./example/example.go for additional hints
-
-// Set ENV
-// Immediately validate thorough utilitary register*()
+// Set and immediately validate env variable
 func setEnv() error {
 	for _, env := range environment {
 		err := registerENV(env)
@@ -50,8 +49,7 @@ func setEnv() error {
 	return nil
 }
 
-// Set flags and explicitly define defaults
-// Defaults, as stated in constraints, should be *negative
+// Set flags
 func setFlags() (err error) {
 	for _, flag := range flags {
 		flag()
@@ -78,9 +76,3 @@ func doOverride() error {
 	}
 	return nil
 }
-
-// *defaults
-// "","false","no","stop" for string
-// 0 for int
-// 0.0 for float
-// false for bool
