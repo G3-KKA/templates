@@ -1,3 +1,6 @@
 {"level":"debug","ts":1720551586.5574791,"msg":"Logger construction succeeded"}
 {"level":"info","ts":1720551586.5605621,"msg":"Hello, World!"}
 {"level":"debug","ts":1720551586.5606053,"msg":"Hello, World!"}
+{"level":"debug","ts":1720552382.5114403,"msg":"Logger construction succeeded"}
+{"level":"info","ts":1720552382.5182686,"msg":"Hello, World!"}
+{"level":"debug","ts":1720552382.5183325,"msg":"Hello, World!"}

@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -15,35 +14,34 @@ import (
 // Phase of config initialisation
 type initPhase func() error
 
+// Container for config override
 type overrideContainer struct {
 	name  string
 	value any
 }
 
+// Use pflag to bind
 type flagSetter func()
+
+// Other options
 type elseSetter func() error
 
-// Executes every phase, panics on first error
-// Program shouldn't start if any phase of configuration fails
-func execute(pipeline []initPhase) {
+func execute(pipeline []initPhase) error {
 	for _, phase := range pipeline {
 		err := phase()
 		if err != nil {
-			log.Fatalf("Cannot init condfig %e\n", err)
+			return fmt.Errorf("cannot init condfig %e", err)
 		}
 	}
+	return nil
 }
-
-// The difference between register() and bind() is
-// that register() extends bind() logic
-// in this case - validates that env
 
 // Adds validation to env binding
 func registerENV(input ...string) error {
 	viper.BindEnv(input...)
 	for _, env := range input {
 		// Type-free validation
-		// Not defined integer or bool would be "" as well
+		// Not defined integer or bool should be "" as well
 		envalue := viper.GetString(env)
 		if envalue == "" {
 			return fmt.Errorf("%s is not defined", env)
@@ -52,7 +50,7 @@ func registerENV(input ...string) error {
 	return nil
 }
 
-// Wraps viper.BindPFlags(pflag.CommandLine)
+// Wraps viper.BindPFlags()
 func bindFlags() error {
 	pflag.Parse()
 	err := viper.BindPFlags(pflag.CommandLine)
@@ -61,13 +59,13 @@ func bindFlags() error {
 	}
 	return nil
 }
-
-// Wraps viper.BindPFlags(pflag.CommandLine) into panic + os.Exit(1)
 func fillGlobalConfig() error {
+
 	err := viper.ReadInConfig()
 	if err != nil {
-		return fmt.Errorf("cannot read config file from CONFIG_FILE: %v", err)
+		return fmt.Errorf("cannot read config file: %v", err)
 	}
+
 	// Will be called one after another
 	// Do not try to put them separately
 	// ComposeDecode in crucial
@@ -76,17 +74,15 @@ func fillGlobalConfig() error {
 		mapstructure.StringToTimeDurationHookFunc(),
 	}
 	composeHook := mapstructure.ComposeDecodeHookFunc(hooks...)
-
-	// Be Careful, viper overrides defauts hooks, if we provide our own(s)
 	err = viper.Unmarshal(&c, viper.DecodeHook(composeHook))
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal config.file into config.C: %v", err)
+		return fmt.Errorf("cannot unmarshal config file contents: %v", err)
 	}
-
 	return nil
 }
 
 // Parse config file path for  ext
+// TODO filepath.EXT()
 func extFromPath(path string) string {
 	dotIndex := strings.LastIndexByte(path, '.')
 	if dotIndex == -1 {
@@ -105,11 +101,8 @@ func nameFromPath(path string) string {
 	return path[slashIndex+1 : dotIndex]
 }
 
-// Set config file name and extention
+// Sets config file name and extention
 // Change only if something breaks
-// For ./relative/path/to/config  and //full/path/to/config
-// For config    .yaml .json .toml
-// Works just fine
 func handleConfigFile() error {
 	configFileEnv := viper.GetString("CONFIG_FILE")
 
@@ -126,7 +119,7 @@ func handleConfigFile() error {
 }
 
 // Parse ${ENV}/dir/file kind of path,
-// Only works if variable to decode is config.path type
+// Only works if variable type is path, see ./config.go
 func envReplaceHook() mapstructure.DecodeHookFuncType {
 	hook := mapstructure.DecodeHookFuncType(
 		func(
@@ -134,7 +127,7 @@ func envReplaceHook() mapstructure.DecodeHookFuncType {
 			t reflect.Type,
 			data any,
 		) (any, error) {
-			// Ignoring other data
+			// Skip other types of data
 			if f.Kind() != reflect.String {
 				return data, nil
 			}
@@ -142,29 +135,37 @@ func envReplaceHook() mapstructure.DecodeHookFuncType {
 				return data, nil
 			}
 
+			// example
 			// #config.yaml
 			// key : ${WORKSPACE}/file/path
-			// viper gives us not config.path type but string
-			// be careful with tests!
+			// #.env
+			// WORKSPACE = ~/user/goapps/thisapp/internal
+
+			// viper gives us not 'path' type but regular string
 			dataString := data.(string)
+
+			// Search for '$' in string
 			dollarIndex := strings.Index(dataString, "$")
 			if dollarIndex == -1 {
 				return data, nil
 			}
+			dataString = dataString[dollarIndex:]
 
 			// Getting indexes of '{' and '}'
 			openBracket := strings.Index(dataString[dollarIndex:], "{")
-			closeBracket := strings.Index(dataString[openBracket:], "}")
+			closeBracket := strings.Index(dataString[dollarIndex:], "}")
+			if closeBracket == -1 || openBracket == -1 {
+				return data, nil
+			}
 
 			// After this operation envName == WORKSPACE
-			envName := dataString[openBracket+1 : closeBracket+1]
+			envName := dataString[openBracket+1 : closeBracket]
 
 			// ~/user/goapps/thisapp/internal + /file/path
 			// ENV we trying to get should not contain '/'
 			// and actual data we want to get should start with'/'
 			// This is the most common case for any path operation
-			// $(pwd)/file/path or WORKSPACE = ..
-			path := viper.GetString(envName) + dataString[closeBracket+2:]
+			path := viper.GetString(envName) + dataString[closeBracket+1:]
 			return path, nil
 		})
 	return hook

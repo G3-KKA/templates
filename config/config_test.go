@@ -13,7 +13,7 @@ type ConfigTestSuite struct {
 	suite.Suite
 }
 
-func TestConfig(t *testing.T) {
+func Test(t *testing.T) {
 	suite.Run(t, new(ConfigTestSuite))
 }
 
@@ -53,6 +53,7 @@ func (t *ConfigTestSuite) Test_envReplaceHook() {
 	t.NotNil(hook, "should be able to get hook,-")
 	// -1 represents any data that should not be parsed
 	testCases := []struct {
+		// This kind of naming [F T D] used inside viper, this is not my fault
 		F              reflect.Type
 		T              reflect.Type
 		D              any
@@ -152,10 +153,8 @@ func (t *ConfigTestSuite) Test_registerENV() {
 	}
 
 }
+
 func (t *ConfigTestSuite) Test_InitConfig() {
-	defer func() {
-		err := recover()
-		t.Nil(err, "should not panic", err)
-	}()
-	InitConfig()
+	err := InitConfig()
+	t.Equal(nil, err, "should be ok")
 }

@@ -8,39 +8,33 @@ import (
 //
 // 1. use `mapstructure` in Config as if it is a yaml/json tag
 // 2. viper can map time not only to string but also to time.Duration
-// 3. use pflag.* inside []flagSetter
 
-// Constaraints on ENV , flags , config.file and Default values
+// Configuration Constraints
 //
-// # ENV
+// # Enivronment variables
 // - Must be defined, otherwise program shouldn't start
 // - Lifetime constants, shouldnt be overridden in runtime
 // - Cannot be defaulted
 //
-// # config.file
+// # Configuration File
 // - Must exist, have same structure as config.Config, otherwise program shouldn't start
 // - May be overridden in runtime or exist in multiple variants across sessions
 // - Cannot Be Defaulted
 //
-// # --flags
-//   - May not be defined, program should start,
+// # Command Line Arguments
+//   - May not be defined
 //   - Lifetime constants, shouldnt be overridden in runtime
-//   - Can and should be defaulted by:
-//	   [false , 0 , -1 , "NO" , "stop"]
-//   	and any other kind of negative value
+//   - Should be defaulted by:
+//	    - Type Zero Values
+//	    - [-1 , "NO" , "off"] or other kind of negative value
 
-// Use this string *alias to be able to decode env in config.file
-// See config.utilitary#envInConfigValuesHook for details
+// Use this type to use env decode hook in configuration file
+// See config/utilitary.go # envInConfigValuesHook for details
+//
 // Brief example of usage:
 // WORKSPACE = ~/user/goapp
 // ${WORKSPACE}/file/path => ~/user/goapp/file/path
 type path string
-
-// Represents config file, must be changed manually
-// Only public fields
-type Config struct {
-	Dummy struct{} `mapstructure:"dummy"`
-}
 
 var environment = [...]string{
 	// Every path in service works around WORKSPACE
@@ -49,7 +43,13 @@ var environment = [...]string{
 	"CONFIG_FILE",
 }
 
-// Use pfalg.*
+// Represents config file, must be changed manually
+// Only public fields
+type Config struct {
+	Dummy string `mapstructure:"Dummy"`
+}
+
+// Command line arguments, use pfalg, see example
 var flags = [...]flagSetter{}
 
 // Other viper options
