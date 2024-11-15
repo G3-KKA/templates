@@ -148,7 +148,7 @@ func (t *ConfigTestSuite) Test_registerENV() {
 		if t.Equal(testcase.Result, viper.GetString(testcase.ENV), testcase.Desc) {
 			continue
 		}
-		t.NotNil(testcase.Error, err, testcase.Desc)
+		t.ErrorIs(err, testcase.Error, testcase.Desc)
 	}
 
 }

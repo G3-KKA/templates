@@ -26,26 +26,24 @@ func (t *ConfigTestSuite) SetupSuite() {
 func (t *ConfigTestSuite) BeforeTest(suiteName, testName string) {
 	switch testName {
 	case "Test_fillGlobalConfig":
-		handleConfigFile()
+		err := handleConfigFile()
+		t.Require().NoError(err)
 	case "Test_registerENV":
 	}
 
 }
 func (t *ConfigTestSuite) Test_execute() {
-	defer func() {
-		err := recover()
-		t.Nil(err, "should not panic", err)
-	}()
-	execute([]initPhase{})
+	err := execute([]initPhase{})
+	t.NoError(err)
 }
 func (t *ConfigTestSuite) Test_bindFlags() {
 	err := bindFlags()
-	t.Nil(err, "should be able to bind flags", err)
+	t.NoError(err, "should be able to bind flags", err)
 
 }
 func (t *ConfigTestSuite) Test_fillGlobalConfig() {
 	err := fillGlobalConfig()
-	t.Nil(err, "should be able to fill global config", err)
+	t.NoError(err, "should be able to fill global config", err)
 
 }
 func (t *ConfigTestSuite) Test_envReplaceHook() {
@@ -97,8 +95,8 @@ func (t *ConfigTestSuite) Test_envReplaceHook() {
 	}
 	for _, testcase := range testCases {
 		result, err := hook(testcase.F, testcase.T, testcase.D)
-		t.Equal(testcase.ExpectedResult, result, testcase.Desc)
-		t.Equal(testcase.ExpecteedErr, err, testcase.Desc)
+		t.Equal(result, testcase.ExpectedResult, testcase.Desc)
+		t.ErrorIs(err, testcase.ExpecteedErr, testcase.Desc)
 	}
 }
 func (t *ConfigTestSuite) Test_extFromPath() {
@@ -149,12 +147,12 @@ func (t *ConfigTestSuite) Test_registerENV() {
 		if t.Equal(testcase.Result, viper.GetString(testcase.ENV), testcase.Desc) {
 			continue
 		}
-		t.NotNil(testcase.Error, err, testcase.Desc)
+		t.ErrorIs(err, testcase.Error, testcase.Desc)
 	}
 
 }
 
 func (t *ConfigTestSuite) Test_InitConfig() {
 	err := InitConfig()
-	t.Equal(nil, err, "should be ok")
+	t.NoError(err, "should be ok")
 }

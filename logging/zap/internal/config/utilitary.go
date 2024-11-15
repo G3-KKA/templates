@@ -102,7 +102,7 @@ func nameFromPath(path string) string {
 	return path[slashIndex+1 : dotIndex]
 }
 
-// Set config file name and extention
+// Set config file name and extension
 // Change only if something breaks
 // For ./relative/path/to/config  and //full/path/to/config
 // For config    .yaml .json .toml
@@ -143,7 +143,7 @@ func envReplaceHook() mapstructure.DecodeHookFuncType {
 			// key : ${WORKSPACE}/file/path
 			// viper gives us not config.path type but string
 			// be careful with tests!
-			dataString := data.(string)
+			dataString, _ := data.(string)
 			dollarIndex := strings.Index(dataString, "$")
 			if dollarIndex == -1 {
 				return data, nil
